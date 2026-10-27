@@ -65,6 +65,8 @@ export function FairProvider({ children }: { children: ReactNode }) {
   // Only the latest request for the current view may update state, so a slow
   // response for the previous industry can never overwrite the new one.
   const inflight = useRef<AbortController | null>(null);
+  // ETag of the last full snapshot; an unchanged state comes back as a body-less 304.
+  const etag = useRef<{ key: string; tag: string; clockAt: number } | null>(null);
 
   const refresh = useCallback(async () => {
     inflight.current?.abort();
@@ -73,9 +75,22 @@ export function FairProvider({ children }: { children: ReactNode }) {
     try {
       const q = new URLSearchParams({ industry });
       if (workerId) q.set("workerId", workerId);
-      const r = await fetch(`/api/state?${q}`, {
-        cache: "no-store", signal: ac.signal, headers: pin ? { "x-employer-pin": pin } : {},
-      });
+      const key = `${industry}|${workerId}|${pin}`;
+      const known = etag.current?.key === key ? etag.current : null;
+      const headers: Record<string, string> = pin ? { "x-employer-pin": pin } : {};
+      if (known) headers["If-None-Match"] = known.tag;
+      const r = await fetch(`/api/state?${q}`, { cache: "no-store", signal: ac.signal, headers });
+      if (r.status === 304 && known) {
+        if (ac.signal.aborted) return;
+        setOnline(true);
+        // data is unchanged; only refresh the server clock now and then so open shifts keep counting
+        const now = Number(r.headers.get("x-server-now"));
+        if (now && Date.now() - known.clockAt > 15_000) {
+          known.clockAt = Date.now();
+          setSnap((s) => (s ? { ...s, now } : s));
+        }
+        return;
+      }
       if (!r.ok) throw new Error(String(r.status));
       const data: Snapshot = await r.json();
       if (ac.signal.aborted) return;
@@ -83,6 +98,8 @@ export function FairProvider({ children }: { children: ReactNode }) {
         setPin("");
         store.set(sessionStorage, "fs-pin", "");
       }
+      const tag = r.headers.get("etag");
+      etag.current = tag ? { key, tag, clockAt: Date.now() } : null;
       setSnap(data);
       setOnline(true);
     } catch {
@@ -94,7 +111,7 @@ export function FairProvider({ children }: { children: ReactNode }) {
     // poll the shared server state so every interface stays consistent
     const tick = () => { if (document.visibilityState === "visible") void refresh(); };
     tick();
-    const t = setInterval(tick, 2000);
+    const t = setInterval(tick, 3000);
     document.addEventListener("visibilitychange", tick);
     return () => {
       clearInterval(t);
@@ -107,6 +124,7 @@ export function FairProvider({ children }: { children: ReactNode }) {
 
   const setIndustry = (i: IndustryId) => {
     setSnap(null);
+    etag.current = null; // nothing to revalidate against once the snapshot is cleared
     setIndustryState(i);
     store.set(localStorage, "fs-industry", i);
   };
@@ -116,6 +134,7 @@ export function FairProvider({ children }: { children: ReactNode }) {
   };
   const setWorkerId = (id: string) => {
     setSnap(null);
+    etag.current = null; // nothing to revalidate against once the snapshot is cleared
     setWorkerIdState(id);
     store.set(localStorage, "fs-worker", id);
   };
