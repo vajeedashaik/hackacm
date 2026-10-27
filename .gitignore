@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.env*
+*.log
+.claude/settings.local.json
+
+# test + browser-tool output
+/app/test-results/
+/app/playwright-report/
+.playwright-mcp/
