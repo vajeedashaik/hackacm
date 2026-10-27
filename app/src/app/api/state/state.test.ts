@@ -23,3 +23,12 @@ describe("GET /api/state conditional requests", () => {
     expect(other.headers.get("etag")).not.toBe(tag);
   });
 });
+
+describe("GET /api/state body", () => {
+  it("is valid JSON that still carries the server clock", async () => {
+    const body = await (await get("industry=construction")).json();
+    expect(body.industry).toBe("construction");
+    expect(typeof body.now).toBe("number");
+    expect(Array.isArray(body.cases)).toBe(true);
+  });
+});

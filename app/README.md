@@ -87,10 +87,37 @@ node --test src/lib/calc.test.mjs
 npx playwright test          # browser e2e in Microsoft Edge (builds and starts its own server)
 ```
 
-Last verified run (2026-10-27, local): typecheck clean; lint clean; `npm test` 102 passed; `test:backend` 66 passed;
-`test:sim` 19 passed; calc 7 passed; `npm run build` succeeds; Playwright 17 passed (wage scenario worker → employer →
-worker, wrong-PIN refusal, offline banner, keyboard and Tamil toggle, both industries, simulation canvas and feed,
-mobile no-horizontal-scroll and accessible names on all four pages, reduced motion, health endpoint).
+Last verified run (2026-10-27, local): typecheck clean; lint clean; `npm test` 111 passed; `test:backend` 66 passed;
+`test:sim` 19 passed; calc 7 passed; `npm run build` succeeds; `npm audit` 0 vulnerabilities; Playwright 34 passed:
+- **Workflow:** wage scenario worker → employer → worker, wrong-PIN refusal, offline banner, keyboard and Tamil toggle,
+  both industries, simulation canvas and feed, reduced motion, health endpoint.
+- **Accessibility:** axe-core WCAG 2.x A/AA scan of all four pages in English and Tamil, plus every worker and employer
+  tab; mobile no-horizontal-scroll and accessible names on all four pages. Automated scans do not replace a manual
+  screen-reader review, which has not been done.
+- **Security:** headers and CSP present and not violated on any page, unauthenticated writes refused, PIN rate limit,
+  oversized body rejected.
+
+Unit tests also cover the case lifecycle (invalid transitions, reopening), worker data isolation, anonymous-feedback
+privacy and the conditional `/api/state` responses. Coverage percentages were not measured.
+
+## Security and privacy notes
+
+- **Access control is demo-grade:** a shared employer PIN (rate limited, closed in production if unset) and unauthenticated
+  workers. Replace with Supabase Auth and the included RLS policies (tested against the real migrations in PGlite) before real use.
+- **Headers:** CSP, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`; the framework header is removed.
+  The CSP allows only `vapi.ai` and `daily.co` as external origins (voice); it has not been exercised against a live Vapi call.
+- **Anonymous feedback** stores no identity and rounds the time to the day, but a small team can still be guessable from the
+  text itself. The worker screen says so. **Confidential** feedback is visible to reviewers by name.
+- **AI** only proposes; money comes from `calc.ts`; model text that invents amounts or claims a decision is discarded.
+- Dependencies: `npm audit` reports 0 vulnerabilities (2026-10-27).
+
+## Efficiency notes
+
+- `/api/state` is polled every 3 s only while the tab is visible. It returns an ETag and a body-less `304` when nothing
+  changed (measured: 3 of 4 polls were 304 on an idle page), so idle tabs neither download nor re-render.
+- Phaser (about 1.4 MB) and the Vapi SDK load only on the simulation page and when voice starts. Dashboard pages ship about
+  650 KB of JavaScript (decoded), which is mostly the React and Next runtime.
+- The event feed is capped at 200 entries; responses are filtered per viewer, so nothing is cached across users.
 
 ## Deploy on Vercel
 

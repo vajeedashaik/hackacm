@@ -41,8 +41,8 @@ export function Nav() {
               <option key={i} value={i}>{INDUSTRIES[i].label[lang]}</option>
             ))}
           </select>
-          <button className="btn" onClick={() => setLang(lang === "en" ? "ta" : "en")} aria-label="Switch language">
-            {lang === "en" ? "தமிழ்" : "English"}
+          <button className="btn" onClick={() => setLang(lang === "en" ? "ta" : "en")} aria-label={`${lang === "en" ? "தமிழ்" : "English"} - Switch language`}>
+            <span lang={lang === "en" ? "ta" : "en"}>{lang === "en" ? "தமிழ்" : "English"}</span>
           </button>
         </div>
       </nav>

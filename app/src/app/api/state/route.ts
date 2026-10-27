@@ -14,13 +14,16 @@ export function GET(req: Request) {
     const u = new URL(req.url);
     const industry = industryOf(u.searchParams.get("industry"));
     const workerId = u.searchParams.get("workerId") ?? undefined;
-    const snap = snapshot(industry, { employer: isEmployer(req), workerId });
-    const etag = `"${createHash("sha1").update(JSON.stringify({ ...snap, now: 0 })).digest("base64url")}"`;
+    const { now, ...stable } = snapshot(industry, { employer: isEmployer(req), workerId });
+    const json = JSON.stringify(stable); // serialised once; the clock is spliced in only for a full response
+    const etag = `"${createHash("sha1").update(json).digest("base64url")}"`;
     const headers = { "Cache-Control": "no-store", ETag: etag };
     if (req.headers.get("if-none-match") === etag) {
-      return new NextResponse(null, { status: 304, headers: { ...headers, "X-Server-Now": String(snap.now) } });
+      return new NextResponse(null, { status: 304, headers: { ...headers, "X-Server-Now": String(now) } });
     }
-    return NextResponse.json(snap, { headers });
+    return new NextResponse(`${json.slice(0, -1)},"now":${now}}`, {
+      headers: { ...headers, "Content-Type": "application/json" },
+    });
   } catch (e) {
     return fail(e);
   }
