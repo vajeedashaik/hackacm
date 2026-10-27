@@ -1,6 +1,6 @@
 # FairShift — project instructions
 
-SDG 8 hackathon project (Prompt Wars 2026 × SRM ACM). Plans live in `phase0.md`–`phase9.md`; `urgebt.md` sets the
+SDG 8 hackathon project (Prompt Wars 2026 × SRM ACM). Earlier phase plans were removed from the repo; `urgebt.md` sets the
 current priority: **ship a working MVP fast, no optional tooling, no invented results.**
 
 ## Architecture (as built)
