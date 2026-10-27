@@ -14,7 +14,13 @@ npx vercel --prod
 ```
 Set the Vercel project **Root Directory** to `app` if you import the Git repo instead.
 
-## Known limitation: in-memory state
+## Durable state (recommended on Vercel)
+1. In Supabase, run `supabase/migrations/0003_app_state.sql` (creates `fairshift_state`, RLS on, client roles revoked).
+2. In Vercel, set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (server-side; not `NEXT_PUBLIC_`). Redeploy.
+3. Verify: file a case, then load the site from a second browser; both should show it, and it should survive a redeploy.
+Limits: one row, last-write-wins, agent proposals not persisted, evidence files are stored in the row (3 files, 1 MB each per case).
+
+## Known limitation: in-memory state (when the above is not configured)
 `src/lib/store.ts` keeps all data in process memory. Vercel serverless instances do not share memory and are recycled, so
 the worker, employer and simulation pages may show different data or lose it. For a single-presenter demo, expect to
 re-create the sample data (Employer → Attendance → load sample shifts) if state disappears. A durable store (Supabase/Postgres,

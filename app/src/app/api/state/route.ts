@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { industryOf, isEmployer } from "@/lib/api";
 import { fail } from "@/lib/http";
+import { hydrate } from "@/lib/persist";
 import { snapshot } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -9,8 +10,9 @@ export const dynamic = "force-dynamic";
 // Pages poll this every few seconds. The ETag covers everything except the clock, so an unchanged
 // state answers 304 with no body and the client skips parsing and re-rendering. It is derived from the
 // viewer-specific body, so one viewer's tag can never validate another viewer's data.
-export function GET(req: Request) {
+export async function GET(req: Request) {
   try {
+    await hydrate();
     const u = new URL(req.url);
     const industry = industryOf(u.searchParams.get("industry"));
     const workerId = u.searchParams.get("workerId") ?? undefined;

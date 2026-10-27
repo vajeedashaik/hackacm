@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hydrate, persist } from "./persist";
 import { clientKey, fail, HttpError, isIndustry, rateLimit, readJson, safeEqual } from "./http";
 import { DomainError } from "./errors";
 import type { IndustryId } from "./types";
@@ -31,7 +32,10 @@ export const reviewerOf = (b: { reviewer?: unknown }) => String(b.reviewer ?? ""
 /** Runs a handler and returns its result as JSON; errors are mapped by `fail`. */
 export async function handle(fn: () => unknown | Promise<unknown>, status = 200) {
   try {
-    return NextResponse.json(await fn(), { status, headers: { "Cache-Control": "no-store" } });
+    await hydrate(); // no-ops unless a durable store is configured
+    const out = await fn();
+    await persist();
+    return NextResponse.json(out, { status, headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     return fail(e);
   }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isEmployer } from "@/lib/api";
 import { fail } from "@/lib/http";
+import { hydrate } from "@/lib/persist";
 import { getEvidence } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +10,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request, ctx: { params: Promise<{ id: string; idx: string }> }) {
   try {
     const { id, idx } = await ctx.params;
+    await hydrate();
     const { buffer, meta, workerId } = getEvidence(id, Number(idx));
     if (!isEmployer(req) && new URL(req.url).searchParams.get("workerId") !== workerId) {
       return NextResponse.json({ error: "Not allowed" }, { status: 403 });

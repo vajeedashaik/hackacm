@@ -34,6 +34,7 @@ Production build: `npm run build`, then `EMPLOYER_PIN=<pin> npm start`.
 | Variable | Needed | Purpose |
 |---|---|---|
 | `EMPLOYER_PIN` | **Yes in production** | Employer gate. With no value in production, employer access stays closed (no default PIN). |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Optional (recommended on Vercel) | Durable shared state. With both set, the case, attendance, feedback, skills and payroll state is saved to one Supabase row (`supabase/migrations/0003_app_state.sql`) and shared across serverless instances. Unset = in-memory only. |
 | `SITE_CODE_SALT` | Optional | Salt for the daily check-in code. |
 | `AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL` | Optional | Any OpenAI-compatible endpoint. Unset = labelled rule-based fallback. |
 | `AI_TIMEOUT_MS`, `AGENT_STEP_TIMEOUT_MS` | Optional | Model and per-step deadlines. |
@@ -87,7 +88,7 @@ node --test src/lib/calc.test.mjs
 npx playwright test          # browser e2e in Microsoft Edge (builds and starts its own server)
 ```
 
-Last verified run (2026-10-27, local): typecheck clean; lint clean; `npm test` 111 passed; `test:backend` 66 passed;
+Last verified run (2026-10-27, local): typecheck clean; lint clean; `npm test` 117 passed; `test:backend` 66 passed;
 `test:sim` 19 passed; calc 7 passed; `npm run build` succeeds; `npm audit` 0 vulnerabilities; Playwright 34 passed:
 - **Workflow:** wage scenario worker → employer → worker, wrong-PIN refusal, offline banner, keyboard and Tamil toggle,
   both industries, simulation canvas and feed, reduced motion, health endpoint.
@@ -127,7 +128,10 @@ durable database first.
 
 ## Known limits (honest list)
 
-- State is not durable and not shared across serverless instances (above). Supabase is not wired to the UI.
+- State is in memory by default. With `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` set, core state is persisted to one jsonb row
+  and reloaded across instances (tested against a mock PostgREST server; **not yet run against a live Supabase project**).
+  Concurrent writers are last-write-wins, and AI agent proposals and events are still in memory only. The per-record schema in
+  `supabase/migrations/0001-0002` is not wired to the UI.
 - Employer access is a shared PIN; workers are not authenticated (they pick an identity). Demo-grade only.
 - Not exercised against live services: any real AI model call, any real Vapi call (needs the keys above).
 - Agent panel text (employer side) is English only; Tamil wording needs native review.

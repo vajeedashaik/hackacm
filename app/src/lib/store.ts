@@ -35,6 +35,20 @@ const state: State = (g.__fairshift3 ??= {
   evidence: {}, alertKeys: new Set(), seq: 0, caseSeq: 0,
 });
 
+/** Serialise the whole state for the optional durable layer (persist.ts). */
+export const exportState = () => JSON.stringify({ ...state, alertKeys: [...state.alertKeys] });
+
+/** Replace the in-memory state with a previously exported one. Shape is checked so a bad row cannot corrupt the store. */
+export function importState(raw: unknown) {
+  const d = raw as Partial<Record<keyof State, unknown>> | null;
+  const lists = ["attendance", "cases", "audit", "events", "feedback", "skills", "payroll", "alertKeys"] as const;
+  if (!d || typeof d !== "object" || lists.some((k) => !Array.isArray(d[k])) || typeof d.seq !== "number"
+    || typeof d.caseSeq !== "number" || typeof d.evidence !== "object" || d.evidence === null) {
+    throw new Error("Stored state has an unexpected shape");
+  }
+  Object.assign(state, d, { alertKeys: new Set(d.alertKeys as string[]) });
+}
+
 const nextId = (p: string) => `${p}${++state.seq}`;
 const cfgOf = (i: IndustryId) => INDUSTRIES[i];
 const findWorker = (industry: IndustryId, workerId: string) =>
